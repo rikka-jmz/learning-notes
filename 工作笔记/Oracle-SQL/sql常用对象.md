@@ -1,66 +1,70 @@
-## ������
+# SQL常用对象
+* 分区表
+* 序列
+* 索引
+## 分区表
 
-�����з������߼�����Ȼ��һ�������ı���ֻ�ǽ����������������ϴ�ŵ�������ռ䣨�����ļ��ϣ���������ѯ����ʱ��������ÿ�ζ�ɨ�����ű��������ڷֿ飿��**��߲�ѯ����**
+表进行分区后，逻辑上仍然是一张完整的表，只是将表中数据在物理上存放到多个表空间（物理文件上），这样查询数据时，不至于每次都扫描整张表（类似于分块？）**提高查询性能**
 
-* ��Χ�����������ݻ��ڷ�Χӳ�䵽ÿһ��������**��Χ**�ڴ�������ʱָ���ķ��������������������ڡ�
-* �б�������**�ص�**ĳ�е�ֵֻ�м�����
-* ɢ�з���������ֵ��ʹ��ɢ���㷨����ȷ�����з����ĸ������С�
-* ��Ϸ�Χɢ�з��������ڷ�Χ���б����Ȱ�ĳ�н��з�Χ�������ٰ�ĳ�н����б�������**�ӷ���**�����еķ�����
-* ���Ϸ�Χɢ�з��������ڷ�Χ��ɢ�С��Ȱ�ĳ�н��з�Χ�������ٰ�ĳ�н���ɢ�з�����
+* 范围分区：将数据基于范围映射到每一个分区。**范围**在创建分区时指定的分区键决定，常采用日期。
+* 列表分区：**特点**某列的值只有几个。
+* 散列分区：在列值上使用散列算法，以确定将行放入哪个分区中。
+* 组合范围散列分区：基于范围和列表。先按某列进行范围分区，再按某列进行列表分区。**子分区**分区中的分区。
+* 复合范围散列分区：基于范围和散列。先按某列进行范围分区，再按某列进行散列分区。
 
- #### ��Χ����(RANGE)
+ #### 范围分区(RANGE)
 
-��Χ���������ݻ��ڷ�Χӳ�䵽ÿһ�������������Χ������**��������**ʱָ����**������**�����ģ����������ڣ���Range������Ӧ�÷�Χ�ȽϹ�ı�������ʽ���������е�ֵ�ķ�Χ����Ϊ�����Ļ�������������¼��ŵ���ֵ���ڵ�range�����С��簴��ʱ�仮�֣�2010��1�µ����ݷŵ�a������2�µ����ݷŵ�b�������ڴ�����ʱ����Ҫָ�����ڵ��У��Լ������ķ�Χֵ��
-�ڰ�ʱ�����ʱ�����ĳЩ��¼���޷�Ԥ�ⷶΧ�����Դ���MAXVALUE���������в���ָ����Χ�ڵļ�¼���ᱻ�洢��maxvalue���ڷ����С�
-��ʹ�÷�Χ����ʱ���뿼�����¼�������
+范围分区将数据基于范围映射到每一个分区，这个范围是你在**创建分区**时指定的**分区键**决定的（常采用日期）。Range分区是应用范围比较广的表分区方式，它是以列的值的范围来做为分区的划分条件，将记录存放到列值所在的range分区中。如按照时间划分，2010年1月的数据放到a分区，2月的数据放到b分区，在创建的时候，需要指定基于的列，以及分区的范围值。
+在按时间分区时，如果某些记录暂无法预测范围，可以创建MAXVALUE分区，所有不在指定范围内的记录都会被存储到maxvalue所在分区中。
+当使用范围分区时，请考虑以下几个规则：
 
-1��ÿһ��������������һ��VALUES LESS THEN�Ӿ䣬��ָ����һ���������ڸ÷����е�����ֵ�����������κ�ֵ���ڻ��ߴ����������ֵ�ļ�¼���ᱻ���뵽��һ����һЩ�ķ����С�
-2�����з��������˵�һ����������һ����ʽ������ֵ�����ֵ���Ǵ˷�����ǰһ������������ֵ��
-3������ߵķ����У�MAXVALUE�����塣MAXVALUE������һ����ȷ����ֵ�����ֵ�������������е��κη�������ֵ��Ҳ��������Ϊ�����κη�����ָ����VALUE LESS THEN��ֵ��ͬʱ������ֵ��
+1）每一个分区都必须有一个VALUES LESS THEN子句，它指定了一个不包括在该分区中的上限值。分区键的任何值等于或者大于这个上限值的记录都会被加入到下一个高一些的分区中。
+2）所有分区，除了第一个，都会有一个隐式的下限值，这个值就是此分区的前一个分区的上限值。
+3）在最高的分区中，MAXVALUE被定义。MAXVALUE代表了一个不确定的值。这个值高于其它分区中的任何分区键的值，也可以理解为高于任何分区中指定的VALUE LESS THEN的值，同时包括空值。
 
-## ����
+## 序列
 
-#### ����
+#### 定义
 
-���к�������������Ϊ���е����Զ��������кţ�����һ��ȼ������ֵ������Ϊ���֣�
+序列号生成器，可以为表中的行自动生成序列号，产生一组等间隔的数值（类型为数字）
 
-**��Ҫ��;**�����ɱ�������ֵ�������ڲ�����������ã�Ҳ����ͨ����ѯ��ǰ��ֵ����ʹ����������һ��ֵ��
+**主要用途**：生成表的主键值，可以在插入语句中引用，也可以通过查询当前的值，或使序列增至下一个值。
 
-#### �﷨
+#### 语法
 
 ```sql
-create sequence [������]
-       [increment by n] -- ������ʡ����Ĭ��Ϊ1�����ָ�ֵ��������ݼ�
-       [start with n]   -- ���г�ʼֵ��Ĭ��Ϊ1
-       [{MAXVALUE/MINVALUE n|NOMAXVALUE}] -- �������������������ɵ����ֵ��NOMAXVALUEΪĬ��ѡ����������ֵ����
-       [{CYCLE|NOCYCLE}] -- �ﵽ�޶�����ֵ���Ƿ���ѭ��
-       [{CACHE n|NOCACHE}] -- CACHE���������е��ڴ���С��Ĭ��20
+create sequence [序列名]
+       [increment by n] -- 步长：省略则默认为1，出现负值，则代表递减
+       [start with n]   -- 序列初始值，默认为1
+       [{MAXVALUE/MINVALUE n|NOMAXVALUE}] -- 定义序列生成器能生成的最大值，NOMAXVALUE为默认选项，代表无最大值定义
+       [{CYCLE|NOCYCLE}] -- 达到限定序列值后是否有循环
+       [{CACHE n|NOCACHE}] -- CACHE定义存放序列的内存块大小，默认20
 -- example --
 create sequence t1_seq increment by 1 start with 1;
 select t1_seq.currval,t1_seq.nextval from dual; 
--- currval������еĵ�ǰֵ��nextval���������е���һ����Чֵ��nextvalӦ��currval֮ǰָ��
+-- currval存放序列的当前值，nextval返回序列中的下一个有效值；nextval应在currval之前指定
 
 ```
 
-* ����```nextval```�����������е���һ�����кţ�����ʱҪָ����������```[seq_name].nextval```
-*  ```currval```���ڲ������е�ǰ��ֵ�����۵��ö��ٴζ�����������е���һ��ֵ�������л�δͨ������```nextval```�������е���һ��ֵ��������```currval```û�����塣
+* 调用```nextval```将生成序列中的下一个序列号，调用时要指出序列名：```[seq_name].nextval```
+*  ```currval```用于产生序列当前的值，无论调用多少次都不会产生序列的下一个值。若序列还未通过调用```nextval```产生序列的下一个值，先引用```currval```没有意义。
 
 ```sql
 create table t1(id number,qq number,ww number)
 insert into t1 values(t1_nextval,1,1)
 ```
 
-**�޸�����**
+**修改序列**
 
-* Ȩ�ޣ�����ӵ���߻���```alter any sequence```Ȩ��
-* ֻ�н���������ֵ�ᱻ�ı�
-* �ı����еĳ�ʼֵ������ɾ�����ؽ�
+* 权限：序列拥有者或有```alter any sequence```权限
+* 只有将来的序列值会被改变
+* 改变序列的初始值智能先删除后重建
 
 ```sql
-alter sequence emp_sequence increment by 10 maxvalue 10000 cycle -- ��10000���ͷ��ʼnocache
+alter sequence emp_sequence increment by 10 maxvalue 10000 cycle -- 到10000后从头开始nocache
 ```
 
-**ɾ������**
+**删除序列**
 
 ```sql
 drop sequence [seq_name]
@@ -68,71 +72,71 @@ drop sequence [seq_name]
 drop sequence t1_seq
 ```
 
-## ����
+## 索引
 
-#### ���
+#### 简介
 
-�����ܡ�
+【介绍】
 
-* ���������������鼮�����������Լ������ݿ��ѯʱ������������
-* ����������ȡ��ȫ��ɨ�������ʽ���Ӷ���߼���Ч��
-* �������߼�&�����϶�����صı��������޹أ�������ɾ��һ������ʱ������Ӱ������ı�
-* ����һ���������ڱ��Ͻ���DML�����롢�޸ġ�ɾ��������ʱ��oracle���Զ���������
-* �������û�͸�������۱����Ƿ���������sql�����÷�����
-* oracle��������ʱ���Զ��ڸ����ϴ�������
+* 索引——类似于书籍的索引，可以减少数据库查询时检索的数据量
+* 用索引键来取代全表扫描检索方式，从而提高检索效率
+* 索引在逻辑&物理上都与相关的表和数据无关，创建或删除一个索引时，不会影响基本的表
+* 索引一旦建立，在表上进行DML（插入、修改、删除）操作时，oracle会自动管理索引
+* 索引对用户透明，无论表上是否有索引，sql语句的用法不变
+* oracle创建主键时会自动在该列上创建索引
 
-��ԭ����
+【原理】
 
-* ��������������������ĳ��¼ʱ���������```name='wish'```����Ҫ�������еļ�¼
-* ����name�Ͻ���������oracle���ȫ������һ����������ÿ����¼��nameֵ�����������У�Ȼ�󹹽�������Ŀ��```name```��```rowid```�����洢���������У���ѯnameΪwishʱֱ�Ӳ��Ҷ�Ӧ�ط�
-* ��������������һ����Ҫʹ�ã�oracle���Զ�ͳ�Ʊ�����Ϣ���������ݺ���ʱֱ��ȫ��������
+* 若无索引，例如在搜索某记录时（例如查找```name='wish'```）需要搜索所有的记录
+* 若在name上建立索引，oracle会对全表进行一次搜索，将每条记录的name值按照升序排列，然后构建索引条目（```name```和```rowid```）。存储到索引段中，查询name为wish时直接查找对应地方
+* 创建了索引并不一定就要使用，oracle会自动统计表的信息，表中数据很少时直接全表检索。
 
-#### �﷨
+#### 语法
 
-**��������**
+**创建索引**
 
 ```sql
-create [unique]|[bitmap] index [index_name] -- unique��ʾΨһ������bitmap��ʾ����λͼ����
+create [unique]|[bitmap] index [index_name] -- unique表示唯一索引，bitmap表示创建位图索引
 -- example --
 create index i_customers_last_name on customers(last_name)
 ```
 
-**ɾ������**
+**删除索引**
 
 ```sql
 drop index [index_name]
 ```
 
-**�޸�����**
+**修改索引**
 
 ```sql
--- ������ --
+-- 重命名 --
 alter index index_sno rename to bitmap_index
--- �ϲ�����ʹ��һ��ʱ��������л������Ƭ����ʱ������Ч�ʻή�ͣ�����ѡ��ϲ����ؽ���--
+-- 合并（表使用一段时间后索引中会产生碎片，此时索引的效率会降低，可以选择合并或重建）--
 alter index index_sno coalesce
--- �ؽ� --
--- 1��ɾ��ԭ�������������½�������
--- 2��ʹ��rebuild����ԭ���������ṹ���½�����ʵ����ɾ��ԭ�����������ؽ�
+-- 重建 --
+-- 1、删除原来的索引，重新建立索引
+-- 2、使用rebuild来将原来的索引结构重新建立，实际是删除原来的索引后重建
 alter index index_sno rebuild
 ```
 
-#### ����
+#### 类型
 
-**��ͨ����/B������**
+**普通索引/B树索引**
 
-�������в��ظ�ֵ�ĸ�����ʱ
+适用于列不重复值的个数大时
 
-* ��á���������Ҷ�ӽڵ㣨˫�����������������к�ָ�����ÿ��ƥ���е�rowidֵ
-* ����Ҷ�ӽڵ������ͬ�����
-* �ܹ���Ӧ��׼��ѯ��ģ����ѯ�ͱȽϲ�ѯ��
+* 最常用。二叉树，叶子节点（双向链表）包含索引列和指向表中每个匹配行的rowid值
+* 所有叶子节点具有相同的深度
+* 能够适应精准查询、模糊查询和比较查询、
 
 
 
-**��������**
+**函数索引**
 
-**λͼ����**
+**位图索引**
 
-**��������**
+**复合索引**
 
 
 
